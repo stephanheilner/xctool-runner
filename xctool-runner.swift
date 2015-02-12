@@ -113,7 +113,7 @@ while !arguments.isEmpty {
         let partitionIndex = max(0, min(numberOfPartitions, NSUserDefaults.standardUserDefaults().stringForKey("partition")?.toInt() ?? 0))
         
         var deviceSpecs: [(name: String, version: String)] = []
-        if let deviceSpecsString = NSUserDefaults.standardUserDefaults().stringForKey("devices") ?? "" {
+        if let deviceSpecsString = NSUserDefaults.standardUserDefaults().stringForKey("devices") {
             for deviceSpecString in deviceSpecsString.componentsSeparatedByString(";") {
                 let deviceSpecParts = deviceSpecString.componentsSeparatedByString(",")
                 let deviceSpec = (name: deviceSpecParts[0], version: deviceSpecParts[1])
