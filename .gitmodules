@@ -1,0 +1,3 @@
+[submodule "Vendor/xctool"]
+	path = Vendor/xctool
+	url = https://github.com/lpios/xctool.git
