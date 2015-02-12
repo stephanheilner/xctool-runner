@@ -16,10 +16,6 @@ func printMessage(message: String) {
 }
 
 let maxNumberOfAttemptsWithoutProgress = 5
-let deviceSpecs = [
-    (name: "iPhone 5", version: "8.1"),
-    (name: "iPad 2", version: "8.1"),
-]
 
 extension NSTask {
     func setStartsNewProcessGroup(flag: Bool) {
@@ -116,6 +112,20 @@ while !arguments.isEmpty {
         let numberOfPartitions = max(1, NSUserDefaults.standardUserDefaults().stringForKey("partition-count")?.toInt() ?? 1)
         let partitionIndex = max(0, min(numberOfPartitions, NSUserDefaults.standardUserDefaults().stringForKey("partition")?.toInt() ?? 0))
         
+        var deviceSpecs: [(name: String, version: String)] = []
+        if let deviceSpecsString = NSUserDefaults.standardUserDefaults().stringForKey("devices") ?? "" {
+            for deviceSpecString in deviceSpecsString.componentsSeparatedByString(";") {
+                let deviceSpecParts = deviceSpecString.componentsSeparatedByString(",")
+                let deviceSpec = (name: deviceSpecParts[0], version: deviceSpecParts[1])
+                deviceSpecs.append(deviceSpec)
+            }
+        } else {
+            deviceSpecs = [
+                (name: "iPhone 5", version: "8.1"),
+                (name: "iPad 2", version: "8.1"),
+            ]
+        }
+        
         if arguments.isEmpty {
             printMessage("Unexpected number of arguments")
             exit(1)
@@ -169,7 +179,7 @@ while !arguments.isEmpty {
         func testFailuresByRunningTests(tests: [Test], onDestination destination: String) -> [Test] {
             NSFileManager.defaultManager().removeItemAtPath(streamJSONPath, error: nil)
             
-            exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "-destination", destination, "-DCONTENT_BASE_URL=test", "CONFIGURATION_BUILD_DIR=\(buildPath)", "run-tests", "-freshSimulator", "-resetSimulator", "-only", xctoolArgumentFromTests(tests, inTarget: target), "-reporter", "pretty", "-reporter", "json-stream:\(streamJSONPath)")
+            exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "-destination", destination, "CONFIGURATION_BUILD_DIR=\(buildPath)", "run-tests", "-freshSimulator", "-resetSimulator", "-only", xctoolArgumentFromTests(tests, inTarget: target), "-reporter", "pretty", "-reporter", "json-stream:\(streamJSONPath)")
             
             if let streamJSON = NSString(contentsOfFile: streamJSONPath, encoding: NSUTF8StringEncoding, error: nil) {
                 var testFailures: [Test] = tests
@@ -214,14 +224,14 @@ while !arguments.isEmpty {
                     }
                     
                     let failedTests = testFailuresByRunningTests(remainingTests, onDestination: device.destination)
+                    if !failedTests.isEmpty {
+                        printMessage("\(failedTests.count) of \(remainingTests.count) test(s) FAILED on \(device.description) (\(attemptDescription))")
+                    }
+                    
                     if failedTests.count < remainingTests.count {
                         numberOfAttemptsWithoutProgress = 0
                     } else {
                         ++numberOfAttemptsWithoutProgress
-                    }
-                    
-                    if !failedTests.isEmpty {
-                        printMessage("\(failedTests.count) test(s) FAILED on \(device.description) (\(attemptDescription))")
                     }
                     
                     remainingTests = failedTests
