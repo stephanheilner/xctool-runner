@@ -100,7 +100,7 @@ while !arguments.isEmpty {
         printMessage("Building workspace=\(workspace), scheme=\(scheme)")
         
         func build() -> Bool {
-            return exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "CONFIGURATION_BUILD_DIR=\(buildPath)", "-IDECustomDerivedDataLocation=\(buildPath)", "clean", "build-tests", "-reporter", "pretty") == 0
+            return exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "CONFIGURATION_BUILD_DIR=\(buildPath)", "-derivedDataPath=\(buildPath)", "clean", "build-tests", "-reporter", "pretty") == 0
         }
         
         if !build() {
@@ -148,7 +148,7 @@ while !arguments.isEmpty {
         let streamJSONPath = buildPath.stringByAppendingPathComponent("stream.json")
         
         func allTests() -> [Test]? {
-            if exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "CONFIGURATION_BUILD_DIR=\(buildPath)", "-IDECustomDerivedDataLocation=\(buildPath)", "run-tests", "-listTestsOnly", "-only", target, "-reporter", "pretty", "-reporter", "json-stream:\(streamJSONPath)") != 0 {
+            if exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "CONFIGURATION_BUILD_DIR=\(buildPath)", "-derivedDataPath=\(buildPath)", "run-tests", "-listTestsOnly", "-only", target, "-reporter", "pretty", "-reporter", "json-stream:\(streamJSONPath)") != 0 {
                 return nil
             } else {
                 if let streamJSON = NSString(contentsOfFile: streamJSONPath, encoding: NSUTF8StringEncoding, error: nil) {
@@ -178,7 +178,7 @@ while !arguments.isEmpty {
         func testFailuresByRunningTests(tests: [Test], onDestination destination: String) -> [Test] {
             NSFileManager.defaultManager().removeItemAtPath(streamJSONPath, error: nil)
             
-            exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "-destination", destination, "CONFIGURATION_BUILD_DIR=\(buildPath)", "-IDECustomDerivedDataLocation=\(buildPath)", "run-tests", "-freshSimulator", "-resetSimulator", "-only", xctoolArgumentFromTests(tests, inTarget: target), "-reporter", "pretty", "-reporter", "json-stream:\(streamJSONPath)")
+            exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "-destination", destination, "CONFIGURATION_BUILD_DIR=\(buildPath)", "-derivedDataPath=\(buildPath)", "run-tests", "-freshSimulator", "-resetSimulator", "-only", xctoolArgumentFromTests(tests, inTarget: target), "-reporter", "pretty", "-reporter", "json-stream:\(streamJSONPath)")
             
             if let streamJSON = NSString(contentsOfFile: streamJSONPath, encoding: NSUTF8StringEncoding, error: nil) {
                 var testFailures: [Test] = tests
