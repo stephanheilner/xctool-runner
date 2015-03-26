@@ -73,8 +73,7 @@ func ==(lhs: Test, rhs: Test) -> Bool {
         (lhs.methodName == rhs.methodName)
 }
 
-let scriptDirectoryPath = NSFileManager.defaultManager().currentDirectoryPath.stringByAppendingPathComponent(launchPath).stringByDeletingLastPathComponent
-let xctoolPath = scriptDirectoryPath.stringByAppendingPathComponent("Vendor/xctool/xctool.sh")
+let xctoolPath = "/usr/local/bin/xctool"
 let buildPath = NSFileManager.defaultManager().currentDirectoryPath.stringByAppendingPathComponent("build")
 
 let workspace = NSUserDefaults.standardUserDefaults().stringForKey("workspace") ?? ""
