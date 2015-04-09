@@ -10,9 +10,9 @@ let launchPath = arguments.removeAtIndex(0)
 
 func printMessage(message: String) {
     let labeledMessage = "xctool-runner: " + message
-    println(String(count: countElements(labeledMessage), repeatedValue: UnicodeScalar("=")))
+    println(String(count: count(labeledMessage), repeatedValue: UnicodeScalar("=")))
     println(labeledMessage)
-    println(String(count: countElements(labeledMessage), repeatedValue: UnicodeScalar("=")))
+    println(String(count: count(labeledMessage), repeatedValue: UnicodeScalar("=")))
 }
 
 let maxNumberOfAttemptsWithoutProgress = 5
@@ -42,7 +42,7 @@ extension Array {
         let anotherSelf = self
         removeAll(keepCapacity: true)
         for (i, current) in enumerate(anotherSelf) {
-            if current as U != element {
+            if current as! U != element {
                 self.append(current)
             }
         }
@@ -120,8 +120,8 @@ while !arguments.isEmpty {
             }
         } else {
             deviceSpecs = [
-                (name: "iPhone 5", version: "8.1"),
-                (name: "iPad 2", version: "8.1"),
+                (name: "iPhone 5", version: "8.3"),
+                (name: "iPad 2", version: "8.3"),
             ]
         }
         
@@ -157,8 +157,8 @@ while !arguments.isEmpty {
                     for line in streamJSON.componentsSeparatedByString("\n") {
                         if let lineData = line.dataUsingEncoding(NSUTF8StringEncoding) {
                             if let event = NSJSONSerialization.JSONObjectWithData(lineData, options: .allZeros, error: nil) as? NSDictionary {
-                                if event["event"] as String == "begin-test" {
-                                    tests.append(Test(className: event["className"] as String, methodName: event["methodName"] as String))
+                                if event["event"] as! String == "begin-test" {
+                                    tests.append(Test(className: event["className"] as! String, methodName: event["methodName"] as! String))
                                 }
                             }
                         }
@@ -186,8 +186,8 @@ while !arguments.isEmpty {
                 for line in streamJSON.componentsSeparatedByString("\n") {
                     if let lineData = line.dataUsingEncoding(NSUTF8StringEncoding) {
                         if let event = NSJSONSerialization.JSONObjectWithData(lineData, options: .allZeros, error: nil) as? NSDictionary {
-                            if event["event"] as String == "end-test" && (event["succeeded"] as NSNumber).boolValue == true {
-                                testFailures.remove(Test(className: event["className"] as String, methodName: event["methodName"] as String))
+                            if event["event"] as! String == "end-test" && (event["succeeded"] as! NSNumber).boolValue == true {
+                                testFailures.remove(Test(className: event["className"] as! String, methodName: event["methodName"] as! String))
                             }
                         }
                     }
