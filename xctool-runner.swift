@@ -2,7 +2,7 @@
 
 import Foundation
 
-// Don't buffer println
+// Don't buffer print
 setbuf(__stdoutp, nil)
 
 var arguments = Process.arguments.filter { !$0.hasPrefix("-") }
@@ -10,9 +10,9 @@ let launchPath = arguments.removeAtIndex(0)
 
 func printMessage(message: String) {
     let labeledMessage = "xctool-runner: " + message
-    println(String(count: count(labeledMessage), repeatedValue: UnicodeScalar("=")))
-    println(labeledMessage)
-    println(String(count: count(labeledMessage), repeatedValue: UnicodeScalar("=")))
+    print(String(count: labeledMessage.characters.count, repeatedValue: UnicodeScalar("=")))
+    print(labeledMessage)
+    print(String(count: labeledMessage.characters.count, repeatedValue: UnicodeScalar("=")))
 }
 
 let maxNumberOfAttemptsWithoutProgress = 5
@@ -23,7 +23,7 @@ extension NSTask {
     }
 }
 
-func exec(launchPath: String, arguments: String...) -> Int {
+func exec(launchPath: String, _ arguments: String...) -> Int {
     let task = NSTask()
     task.setStartsNewProcessGroup(false)
     task.launchPath = launchPath
@@ -41,7 +41,7 @@ extension Array {
     mutating func remove<U: Equatable>(element: U) {
         let anotherSelf = self
         removeAll(keepCapacity: true)
-        for (i, current) in enumerate(anotherSelf) {
+        for current in anotherSelf {
             if current as! U != element {
                 self.append(current)
             }
@@ -73,8 +73,9 @@ func ==(lhs: Test, rhs: Test) -> Bool {
         (lhs.methodName == rhs.methodName)
 }
 
-let xctoolPath = "/usr/local/bin/xctool"
-let buildPath = NSFileManager.defaultManager().currentDirectoryPath.stringByAppendingPathComponent("build")
+//let xctoolPath = "/usr/local/bin/xctool"
+let xctoolPath = ((launchPath as NSString).stringByDeletingLastPathComponent as NSString).stringByAppendingPathComponent("Vendor/xctool/xctool.sh")
+let buildPath = (NSFileManager.defaultManager().currentDirectoryPath as NSString).stringByAppendingPathComponent("build")
 
 let workspace = NSUserDefaults.standardUserDefaults().stringForKey("workspace") ?? ""
 if workspace.isEmpty {
@@ -108,8 +109,8 @@ while !arguments.isEmpty {
             exit(1)
         }
     case "test":
-        let numberOfPartitions = max(1, NSUserDefaults.standardUserDefaults().stringForKey("partition-count")?.toInt() ?? 1)
-        let partitionIndex = max(0, min(numberOfPartitions, NSUserDefaults.standardUserDefaults().stringForKey("partition")?.toInt() ?? 0))
+        let numberOfPartitions = max(1, Int(NSUserDefaults.standardUserDefaults().stringForKey("partition-count") ?? "") ?? 1)
+        let partitionIndex = max(0, min(numberOfPartitions, Int(NSUserDefaults.standardUserDefaults().stringForKey("partition") ?? "") ?? 0))
         
         var deviceSpecs: [(name: String, version: String)] = []
         if let deviceSpecsString = NSUserDefaults.standardUserDefaults().stringForKey("devices") {
@@ -120,8 +121,8 @@ while !arguments.isEmpty {
             }
         } else {
             deviceSpecs = [
-                (name: "iPhone 5", version: "8.3"),
-                (name: "iPad 2", version: "8.3"),
+                (name: "iPhone 5", version: "9.0"),
+                (name: "iPad 2", version: "9.0"),
             ]
         }
         
@@ -145,18 +146,18 @@ while !arguments.isEmpty {
             }
         }
         
-        let streamJSONPath = buildPath.stringByAppendingPathComponent("stream.json")
+        let streamJSONPath = (buildPath as NSString).stringByAppendingPathComponent("stream.json")
         
         func allTests() -> [Test]? {
             if exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "CONFIGURATION_BUILD_DIR=\(buildPath)", "-derivedDataPath=\(buildPath)", "run-tests", "-listTestsOnly", "-only", target, "-reporter", "pretty", "-reporter", "json-stream:\(streamJSONPath)") != 0 {
                 return nil
             } else {
-                if let streamJSON = NSString(contentsOfFile: streamJSONPath, encoding: NSUTF8StringEncoding, error: nil) {
+                if let streamJSON = try? NSString(contentsOfFile: streamJSONPath, encoding: NSUTF8StringEncoding) {
                     var tests: [Test] = []
                     
                     for line in streamJSON.componentsSeparatedByString("\n") {
                         if let lineData = line.dataUsingEncoding(NSUTF8StringEncoding) {
-                            if let event = NSJSONSerialization.JSONObjectWithData(lineData, options: .allZeros, error: nil) as? NSDictionary {
+                            if let event = (try? NSJSONSerialization.JSONObjectWithData(lineData, options: [])) as? [String: AnyObject] {
                                 if event["event"] as! String == "begin-test" {
                                     tests.append(Test(className: event["className"] as! String, methodName: event["methodName"] as! String))
                                 }
@@ -172,20 +173,22 @@ while !arguments.isEmpty {
         }
         
         func xctoolArgumentFromTests(tests: [Test], inTarget target: String) -> String {
-            return target + ":" + ",".join(tests.map { "\($0.className)/\($0.methodName)" })
+            return target + ":" + tests.map { "\($0.className)/\($0.methodName)" }.joinWithSeparator(",")
         }
         
         func testFailuresByRunningTests(tests: [Test], onDestination destination: String) -> [Test] {
-            NSFileManager.defaultManager().removeItemAtPath(streamJSONPath, error: nil)
+            do {
+                try NSFileManager.defaultManager().removeItemAtPath(streamJSONPath)
+            } catch {}
             
             exec(xctoolPath, "-workspace", workspace, "-scheme", scheme, "-sdk", "iphonesimulator", "-destination", destination, "CONFIGURATION_BUILD_DIR=\(buildPath)", "-derivedDataPath=\(buildPath)", "run-tests", "-freshSimulator", "-resetSimulator", "-only", xctoolArgumentFromTests(tests, inTarget: target), "-reporter", "pretty", "-reporter", "json-stream:\(streamJSONPath)")
             
-            if let streamJSON = NSString(contentsOfFile: streamJSONPath, encoding: NSUTF8StringEncoding, error: nil) {
+            if let streamJSON = try? NSString(contentsOfFile: streamJSONPath, encoding: NSUTF8StringEncoding) {
                 var testFailures: [Test] = tests
                 
                 for line in streamJSON.componentsSeparatedByString("\n") {
                     if let lineData = line.dataUsingEncoding(NSUTF8StringEncoding) {
-                        if let event = NSJSONSerialization.JSONObjectWithData(lineData, options: .allZeros, error: nil) as? NSDictionary {
+                        if let event = (try? NSJSONSerialization.JSONObjectWithData(lineData, options: [])) as? [String: AnyObject] {
                             if event["event"] as! String == "end-test" && (event["succeeded"] as! NSNumber).boolValue == true {
                                 testFailures.remove(Test(className: event["className"] as! String, methodName: event["methodName"] as! String))
                             }
@@ -207,7 +210,7 @@ while !arguments.isEmpty {
             
             for test in allTests {
                 let marker = (partitionedTests.contains(test) ? ">" : " ")
-                println("\t\(marker) \(test.className).\(test.methodName)")
+                print("\t\(marker) \(test.className).\(test.methodName)")
             }
             
             for device in devices() {
@@ -219,7 +222,7 @@ while !arguments.isEmpty {
                     
                     printMessage("Running \(remainingTests.count) test(s) on \(device.description) (\(attemptDescription))")
                     for test in remainingTests {
-                        println("\t> \(test.className).\(test.methodName)")
+                        print("\t> \(test.className).\(test.methodName)")
                     }
                     
                     let failedTests = testFailuresByRunningTests(remainingTests, onDestination: device.destination)
